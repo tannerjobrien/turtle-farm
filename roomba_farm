@@ -1,4 +1,4 @@
--- roomba_farm_fd_no_tomatoes.lua
+-- roomba_farm_fd_no_tomatoes_fixed.lua
 -- Farming Turtle with Farmer's Delight support, maturity checks,
 -- automatic unloading/refueling (chest below), coordinate tracking,
 -- and fuel threshold. Tomatoes are ignored.
@@ -44,6 +44,7 @@ local function forward()
     elseif dir == 1 then x = x + 1
     elseif dir == 2 then y = y - 1
     elseif dir == 3 then x = x - 1 end
+    return true
 end
 
 local function turnLeft() turtle.turnLeft(); dir = (dir - 1) % 4 end
@@ -170,7 +171,7 @@ local function farm()
             harvestAndReplant()
             if inventoryFull() then unloadAndRefuel() end
             ensureFuel()
-            if not turtle.forward() then break else forward() end
+            if not forward() then break end
         end
         harvestAndReplant()
 
