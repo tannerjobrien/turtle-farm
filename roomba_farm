@@ -1,6 +1,6 @@
--- roomba_farm_fd_full.lua
+-- roomba_farm_fd_full_down.lua
 -- Farming Turtle with Farmer's Delight support, maturity checks,
--- automatic unloading/refueling, path tracking, and fuel threshold.
+-- automatic unloading/refueling (chest below), path tracking, and fuel threshold.
 
 -- Crop-to-seed mapping
 local cropSeeds = {
@@ -21,6 +21,12 @@ local function recordMove(move) table.insert(path, move) end
 -- Fuel threshold
 local MIN_FUEL = 200
 
+-- Helper: check if an item is fuel
+local function isFuelItem(name)
+    return name == "minecraft:coal" or name == "minecraft:charcoal"
+end
+
+-- Movement wrappers
 local function ensureFuel()
     local fuel = turtle.getFuelLevel()
     if fuel == "unlimited" then return true end
@@ -30,7 +36,6 @@ local function ensureFuel()
     end
 end
 
--- Movement wrappers
 local function forward()
     ensureFuel()
     while not turtle.forward() do
@@ -116,15 +121,40 @@ local function inventoryFull()
     return true
 end
 
--- Unload + refuel at chest behind start
+-- Unload + refuel at chest below
 function unloadAndRefuel()
     goHome()
-    turtle.turnLeft(); turtle.turnLeft()
-    for i = 1, 16 do turtle.select(i); turtle.drop() end
-    turtle.suck(1)
-    if turtle.refuel(0) then turtle.refuel() end
-    turtle.drop()
-    turtle.turnLeft(); turtle.turnLeft()
+
+    -- Drop all non-fuel items into chest below
+    for i = 1, 16 do
+        local detail = turtle.getItemDetail(i)
+        if detail and not isFuelItem(detail.name) then
+            turtle.select(i)
+            turtle.dropDown()
+        end
+    end
+
+    -- Refuel from own inventory first
+    for i = 1, 16 do
+        local detail = turtle.getItemDetail(i)
+        if detail and isFuelItem(detail.name) then
+            turtle.select(i)
+            turtle.refuel()
+        end
+    end
+
+    -- If still low, try to pull coal/charcoal from chest below
+    if turtle.getFuelLevel() < MIN_FUEL then
+        turtle.suckDown(1)
+        local detail = turtle.getItemDetail()
+        if detail and isFuelItem(detail.name) then
+            turtle.refuel()
+        else
+            -- not fuel, put it back
+            turtle.dropDown()
+        end
+    end
+
     returnToWork()
 end
 
