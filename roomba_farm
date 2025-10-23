@@ -1,6 +1,7 @@
--- roomba_farm_fd_full_down.lua
+-- roomba_farm_fd_coords.lua
 -- Farming Turtle with Farmer's Delight support, maturity checks,
--- automatic unloading/refueling (chest below), path tracking, and fuel threshold.
+-- automatic unloading/refueling (chest below), coordinate tracking,
+-- and fuel threshold. Returns home directly instead of retracing.
 
 -- Crop-to-seed mapping
 local cropSeeds = {
@@ -14,11 +15,9 @@ local cropSeeds = {
     ["farmersdelight:rice_panicles"] = "farmersdelight:rice"
 }
 
--- Path tracking
-local path = {}
-local function recordMove(move) table.insert(path, move) end
+-- Position tracking
+local x, y, dir = 0, 0, 0  -- start at (0,0), facing north (0=N,1=E,2=S,3=W)
 
--- Fuel threshold
 local MIN_FUEL = 200
 
 -- Helper: check if an item is fuel
@@ -42,28 +41,39 @@ local function forward()
         turtle.dig()
         sleep(0.2)
     end
-    recordMove("F")
+    if dir == 0 then y = y + 1
+    elseif dir == 1 then x = x + 1
+    elseif dir == 2 then y = y - 1
+    elseif dir == 3 then x = x - 1 end
 end
-local function turnLeft() turtle.turnLeft(); recordMove("L") end
-local function turnRight() turtle.turnRight(); recordMove("R") end
 
--- Reverse navigation
-local function goHome()
-    for i = #path, 1, -1 do
-        local move = path[i]
-        if move == "F" then turtle.back()
-        elseif move == "L" then turtle.turnRight()
-        elseif move == "R" then turtle.turnLeft() end
+local function turnLeft() turtle.turnLeft(); dir = (dir - 1) % 4 end
+local function turnRight() turtle.turnRight(); dir = (dir + 1) % 4 end
+
+-- Go directly home
+local function goHomeDirect()
+    -- Fix X
+    if x > 0 then
+        while dir ~= 3 do turnLeft() end
+        for i=1,x do turtle.forward() end
+    elseif x < 0 then
+        while dir ~= 1 do turnLeft() end
+        for i=1,-x do turtle.forward() end
     end
-end
-local function returnToWork()
-    for i = 1, #path do
-        local move = path[i]
-        if move == "F" then turtle.forward()
-        elseif move == "L" then turtle.turnLeft()
-        elseif move == "R" then turtle.turnRight() end
+    x = 0
+    -- Fix Y
+    if y > 0 then
+        while dir ~= 2 do turnLeft() end
+        for i=1,y do turtle.forward() end
+    elseif y < 0 then
+        while dir ~= 0 do turnLeft() end
+        for i=1,-y do turtle.forward() end
     end
+    y = 0
 end
+
+-- Return to work: not needed with direct home, we just resume from home
+-- (farm loop will continue from current position)
 
 -- Select matching seed
 local function selectSeed(seedName)
@@ -123,7 +133,7 @@ end
 
 -- Unload + refuel at chest below
 function unloadAndRefuel()
-    goHome()
+    goHomeDirect()
 
     -- Drop all non-fuel items into chest below
     for i = 1, 16 do
@@ -150,12 +160,9 @@ function unloadAndRefuel()
         if detail and isFuelItem(detail.name) then
             turtle.refuel()
         else
-            -- not fuel, put it back
             turtle.dropDown()
         end
     end
-
-    returnToWork()
 end
 
 -- Farming loop
@@ -167,18 +174,18 @@ local function farm()
             harvestAndReplant()
             if inventoryFull() then unloadAndRefuel() end
             ensureFuel()
-            if not turtle.forward() then break else recordMove("F") end
+            if not turtle.forward() then break else forward() end
         end
         harvestAndReplant()
 
         -- Try to move to next row
         if turnRightNext then
             turnRight()
-            if turtle.forward() then recordMove("F"); turnRight(); turnRightNext = false
+            if turtle.forward() then forward(); turnRight(); turnRightNext = false
             else break end
         else
             turnLeft()
-            if turtle.forward() then recordMove("F"); turnLeft(); turnRightNext = true
+            if turtle.forward() then forward(); turnLeft(); turnRightNext = true
             else break end
         end
     end
