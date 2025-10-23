@@ -1,7 +1,7 @@
--- roomba_farm_fd_coords.lua
+-- roomba_farm_fd_no_tomatoes.lua
 -- Farming Turtle with Farmer's Delight support, maturity checks,
 -- automatic unloading/refueling (chest below), coordinate tracking,
--- and fuel threshold. Returns home directly instead of retracing.
+-- and fuel threshold. Tomatoes are ignored.
 
 -- Crop-to-seed mapping
 local cropSeeds = {
@@ -11,7 +11,6 @@ local cropSeeds = {
     ["minecraft:beetroots"] = "minecraft:beetroot_seeds",
     ["farmersdelight:cabbages"] = "farmersdelight:cabbage_seeds",
     ["farmersdelight:onions"] = "farmersdelight:onion",
-    ["farmersdelight:tomatoes"] = "farmersdelight:tomato_seeds",
     ["farmersdelight:rice_panicles"] = "farmersdelight:rice"
 }
 
@@ -72,9 +71,6 @@ local function goHomeDirect()
     y = 0
 end
 
--- Return to work: not needed with direct home, we just resume from home
--- (farm loop will continue from current position)
-
 -- Select matching seed
 local function selectSeed(seedName)
     for i = 1, 16 do
@@ -95,10 +91,15 @@ local function harvestAndReplant()
 
     if (blockName == "minecraft:wheat" or
         blockName == "minecraft:carrots" or
-        blockName == "minecraft:potatoes" or
-        blockName == "minecraft:beetroots") and state.age == 7 then
+        blockName == "minecraft:potatoes") and state.age == 7 then
         turtle.digDown()
         if selectSeed(cropSeeds[blockName]) then turtle.placeDown() end
+        return
+    end
+    -- Beetroots mature at age 3
+    if blockName == "minecraft:beetroots" and state.age == 3 then
+        turtle.digDown()
+        if selectSeed("minecraft:beetroot_seeds") then turtle.placeDown() end
         return
     end
     if blockName == "farmersdelight:cabbages" and state.age == 7 then
@@ -111,18 +112,13 @@ local function harvestAndReplant()
         if selectSeed("farmersdelight:onion") then turtle.placeDown() end
         return
     end
-    if blockName == "farmersdelight:tomatoes" and state.age == 7 then
-        turtle.digDown()
-        local upSuccess, upData = turtle.inspectUp()
-        if upSuccess and upData.name == "farmersdelight:tomatoes" then turtle.digUp() end
-        if selectSeed("farmersdelight:tomato_seeds") then turtle.placeDown() end
-        return
-    end
     if blockName == "farmersdelight:rice_panicles" and state.age == 3 then
         turtle.digDown()
         if selectSeed("farmersdelight:rice") then turtle.placeDown() end
         return
     end
+
+    -- Tomatoes intentionally ignored
 end
 
 -- Inventory check
