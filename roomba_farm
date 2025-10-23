@@ -195,7 +195,7 @@ local function farm()
                 turnRight()
                 turnRightNext = false
             else
-                break
+                return -- no more rows
             end
         else
             turnLeft()
@@ -203,7 +203,7 @@ local function farm()
                 turnLeft()
                 turnRightNext = true
             else
-                break
+                return -- no more rows
             end
         end
     end
