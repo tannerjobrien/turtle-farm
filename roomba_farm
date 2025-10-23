@@ -1,4 +1,4 @@
--- roomba_farm_fd_mature_chest_path_fuel.lua
+-- roomba_farm_fd_full.lua
 -- Farming Turtle with Farmer's Delight support, maturity checks,
 -- automatic unloading/refueling, path tracking, and fuel threshold.
 
@@ -16,10 +16,7 @@ local cropSeeds = {
 
 -- Path tracking
 local path = {}
-
-local function recordMove(move)
-    table.insert(path, move)
-end
+local function recordMove(move) table.insert(path, move) end
 
 -- Fuel threshold
 local MIN_FUEL = 200
@@ -42,41 +39,24 @@ local function forward()
     end
     recordMove("F")
 end
-
-local function turnLeft()
-    turtle.turnLeft()
-    recordMove("L")
-end
-
-local function turnRight()
-    turtle.turnRight()
-    recordMove("R")
-end
+local function turnLeft() turtle.turnLeft(); recordMove("L") end
+local function turnRight() turtle.turnRight(); recordMove("R") end
 
 -- Reverse navigation
 local function goHome()
     for i = #path, 1, -1 do
         local move = path[i]
-        if move == "F" then
-            turtle.back()
-        elseif move == "L" then
-            turtle.turnRight()
-        elseif move == "R" then
-            turtle.turnLeft()
-        end
+        if move == "F" then turtle.back()
+        elseif move == "L" then turtle.turnRight()
+        elseif move == "R" then turtle.turnLeft() end
     end
 end
-
 local function returnToWork()
     for i = 1, #path do
         local move = path[i]
-        if move == "F" then
-            turtle.forward()
-        elseif move == "L" then
-            turtle.turnLeft()
-        elseif move == "R" then
-            turtle.turnRight()
-        end
+        if move == "F" then turtle.forward()
+        elseif move == "L" then turtle.turnLeft()
+        elseif move == "R" then turtle.turnRight() end
     end
 end
 
@@ -96,9 +76,7 @@ end
 local function harvestAndReplant()
     local success, data = turtle.inspectDown()
     if not success then return end
-
-    local blockName = data.name
-    local state = data.state or {}
+    local blockName, state = data.name, data.state or {}
 
     if (blockName == "minecraft:wheat" or
         blockName == "minecraft:carrots" or
@@ -108,29 +86,23 @@ local function harvestAndReplant()
         if selectSeed(cropSeeds[blockName]) then turtle.placeDown() end
         return
     end
-
     if blockName == "farmersdelight:cabbages" and state.age == 7 then
         turtle.digDown()
         if selectSeed("farmersdelight:cabbage_seeds") then turtle.placeDown() end
         return
     end
-
     if blockName == "farmersdelight:onions" and state.age == 7 then
         turtle.digDown()
         if selectSeed("farmersdelight:onion") then turtle.placeDown() end
         return
     end
-
     if blockName == "farmersdelight:tomatoes" and state.age == 7 then
         turtle.digDown()
         local upSuccess, upData = turtle.inspectUp()
-        if upSuccess and upData.name == "farmersdelight:tomatoes" then
-            turtle.digUp()
-        end
+        if upSuccess and upData.name == "farmersdelight:tomatoes" then turtle.digUp() end
         if selectSeed("farmersdelight:tomato_seeds") then turtle.placeDown() end
         return
     end
-
     if blockName == "farmersdelight:rice_panicles" and state.age == 3 then
         turtle.digDown()
         if selectSeed("farmersdelight:rice") then turtle.placeDown() end
@@ -140,39 +112,19 @@ end
 
 -- Inventory check
 local function inventoryFull()
-    for i = 1, 16 do
-        if not turtle.getItemDetail(i) then
-            return false
-        end
-    end
+    for i = 1, 16 do if not turtle.getItemDetail(i) then return false end end
     return true
 end
 
 -- Unload + refuel at chest behind start
 function unloadAndRefuel()
     goHome()
-
-    -- Face chest
-    turtle.turnLeft()
-    turtle.turnLeft()
-
-    -- Drop all
-    for i = 1, 16 do
-        turtle.select(i)
-        turtle.drop()
-    end
-
-    -- Refuel if chest has fuel
+    turtle.turnLeft(); turtle.turnLeft()
+    for i = 1, 16 do turtle.select(i); turtle.drop() end
     turtle.suck(1)
-    if turtle.refuel(0) then
-        turtle.refuel()
-    end
+    if turtle.refuel(0) then turtle.refuel() end
     turtle.drop()
-
-    -- Face farm again
-    turtle.turnLeft()
-    turtle.turnLeft()
-
+    turtle.turnLeft(); turtle.turnLeft()
     returnToWork()
 end
 
@@ -180,34 +132,24 @@ end
 local function farm()
     local turnRightNext = true
     while true do
-        while turtle.forward() do
-            recordMove("F")
+        -- Traverse one row until blocked
+        while true do
             harvestAndReplant()
-            if inventoryFull() then
-                unloadAndRefuel()
-            end
+            if inventoryFull() then unloadAndRefuel() end
             ensureFuel()
+            if not turtle.forward() then break else recordMove("F") end
         end
         harvestAndReplant()
 
+        -- Try to move to next row
         if turnRightNext then
             turnRight()
-            if turtle.forward() then
-                recordMove("F")
-                turnRight()
-                turnRightNext = false
-            else
-                break
-            end
+            if turtle.forward() then recordMove("F"); turnRight(); turnRightNext = false
+            else break end
         else
             turnLeft()
-            if turtle.forward() then
-                recordMove("F")
-                turnLeft()
-                turnRightNext = true
-            else
-                break
-            end
+            if turtle.forward() then recordMove("F"); turnLeft(); turnRightNext = true
+            else break end
         end
     end
 end
